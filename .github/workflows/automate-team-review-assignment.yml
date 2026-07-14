@@ -67,18 +67,175 @@ jobs:
 
         - name: Assign reviewers for a community PR
           if: ${{ steps.check.outputs.contributor == 'yes' && github.event.pull_request.draft == false }}
-          uses: shufo/auto-assign-reviewer-by-files@f5f3db9ef06bd72ab6978996988c6462cbdaabf6
+          uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
           with:
-              config: '.github/project-community-pr-assigner.yml'
-              token: ${{ secrets.PR_ASSIGN_TOKEN }}
+              github-token: ${{ secrets.PR_ASSIGN_TOKEN }}
+              script: |
+                  const { owner, repo } = context.repo;
+                  const pull_number = context.payload.pull_request.number;
+                  const author = context.payload.pull_request.user.login;
+
+                  // Load the path -> reviewers map from the PR's base branch, which is trusted
+                  // even on pull_request_target since it is never the contributor's fork.
+                  const { data: file } = await github.rest.repos.getContent( {
+                      owner,
+                      repo,
+                      path: '.github/project-community-pr-assigner.json',
+                      ref: context.payload.pull_request.base.sha,
+                  } );
+                  const { assignments } = JSON.parse(
+                      Buffer.from( file.content, 'base64' ).toString( 'utf8' )
+                  );
+
+                  const changedFiles = await github.paginate( github.rest.pulls.listFiles, {
+                      owner,
+                      repo,
+                      pull_number,
+                      per_page: 100,
+                  } );
+                  const paths = changedFiles.map( ( f ) => f.filename );
+
+                  // Translate a glob to a RegExp with the same semantics the previous action used:
+                  // * matches within a path segment, ** matches across segments, and a leading **/
+                  // may also match zero segments.
+                  const specialChars = /[.+?^${}()|[\]\\]/;
+                  const globToRegExp = ( glob ) => {
+                      let source = '';
+                      for ( let i = 0; i < glob.length; i++ ) {
+                          const char = glob[ i ];
+                          if ( char === '*' ) {
+                              if ( glob[ i + 1 ] === '*' ) {
+                                  i++;
+                                  if ( glob[ i + 1 ] === '/' ) {
+                                      i++;
+                                      source += '(?:.*/)?';
+                                  } else {
+                                      source += '.*';
+                                  }
+                              } else {
+                                  source += '[^/]*';
+                              }
+                          } else if ( specialChars.test( char ) ) {
+                              source += '\\' + char;
+                          } else {
+                              source += char;
+                          }
+                      }
+                      return new RegExp( '^' + source + '$' );
+                  };
+
+                  const reviewers = new Set();
+                  const teamReviewers = new Set();
+                  for ( const [ glob, entries ] of Object.entries( assignments ) ) {
+                      const matcher = globToRegExp( glob );
+                      if ( ! paths.some( ( path ) => matcher.test( path ) ) ) {
+                          continue;
+                      }
+                      for ( const entry of entries ) {
+                          if ( typeof entry === 'string' ) {
+                              reviewers.add( entry );
+                          } else if ( entry && entry.team ) {
+                              teamReviewers.add( entry.team );
+                          }
+                      }
+                  }
+
+                  // GitHub rejects a review request that includes the PR author.
+                  reviewers.delete( author );
+
+                  if ( reviewers.size === 0 && teamReviewers.size === 0 ) {
+                      core.info( 'No reviewers matched the changed files.' );
+                      return;
+                  }
+
+                  const requestReviewers = ( reviewersList, teamReviewersList ) =>
+                      github.rest.pulls.requestReviewers( {
+                          owner,
+                          repo,
+                          pull_number,
+                          reviewers: reviewersList,
+                          team_reviewers: teamReviewersList,
+                      } );
+
+                  try {
+                      await requestReviewers( [ ...reviewers ], [ ...teamReviewers ] );
+                  } catch ( error ) {
+                      // A single invalid entry rejects the whole batch, so fall back to
+                      // requesting each reviewer on its own and skip only the bad ones.
+                      core.warning(
+                          `Batch review request failed (${ error.message }); retrying individually.`
+                      );
+                      for ( const reviewer of reviewers ) {
+                          try {
+                              await requestReviewers( [ reviewer ], [] );
+                          } catch ( individualError ) {
+                              core.warning(
+                                  `Could not request reviewer ${ reviewer }: ${ individualError.message }`
+                              );
+                          }
+                      }
+                      for ( const team of teamReviewers ) {
+                          try {
+                              await requestReviewers( [], [ team ] );
+                          } catch ( individualError ) {
+                              core.warning(
+                                  `Could not request team ${ team }: ${ individualError.message }`
+                              );
+                          }
+                      }
+                  }
 
         - name: Assign reviewers for a teams PR
           if: ${{ steps.check.outputs.contributor == 'no' && github.event.pull_request.draft == false && ! contains( github.event.pull_request.labels.*.name, 'Release' ) && ( github.event.pull_request.base.ref == 'trunk' || startsWith( github.event.pull_request.base.ref, 'release/' ) ) }}
           continue-on-error: ${{ ( github.event.pull_request.head.repo.fork && 'true' ) || 'false' }}
-          uses: acq688/Request-Reviewer-For-Team-Action@fca1c60fd0504aef59bdc925f3902c8a2d8bce62 # v1.1
+          uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
           with:
-              config: '.github/automate-team-review-assignment-config.yml'
-              GITHUB_TOKEN: ${{ secrets.PR_ASSIGN_TOKEN }}
+              github-token: ${{ secrets.PR_ASSIGN_TOKEN }}
+              script: |
+                  const { owner, repo } = context.repo;
+                  const pull_number = context.payload.pull_request.number;
+                  const author = context.payload.pull_request.user.login;
+
+                  // Author's team -> reviewing team. Mirrors the removed
+                  // .github/automate-team-review-assignment-config.yml: a PR from a member of
+                  // one of these teams is routed back to that same team for review.
+                  const teams = [ 'rubik', 'woo-fse', 'ballade' ];
+
+                  const teamReviewers = [];
+                  for ( const team of teams ) {
+                      try {
+                          const { data: membership } =
+                              await github.rest.teams.getMembershipForUserInOrg( {
+                                  org: owner,
+                                  team_slug: team,
+                                  username: author,
+                              } );
+                          if ( membership.state === 'active' ) {
+                              teamReviewers.push( team );
+                          }
+                      } catch ( error ) {
+                          // 404 means the author is not a member of this team; anything else is unexpected.
+                          if ( error.status !== 404 ) {
+                              throw error;
+                          }
+                      }
+                  }
+
+                  if ( teamReviewers.length === 0 ) {
+                      core.info( `${ author } is not a member of an auto-assigned team.` );
+                      return;
+                  }
+
+                  try {
+                      await github.rest.pulls.requestReviewers( {
+                          owner,
+                          repo,
+                          pull_number,
+                          team_reviewers: teamReviewers,
+                      } );
+                  } catch ( error ) {
+                      core.warning( `Failed to request team reviewers: ${ error.message }` );
+                  }
 
     add-testing-instructions-review-comment:
       name: Remind reviewers to also review the testing instructions and test coverage
