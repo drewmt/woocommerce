@@ -41,6 +41,13 @@ class WC_Product_Variable extends WC_Product {
 	protected $variation_attributes = null;
 
 	/**
+	 * Variations prices.
+	 *
+	 * @var array<string,array<string,array<int,float>>>
+	 */
+	private array $variation_prices = array();
+
+	/**
 	 * Get internal type.
 	 *
 	 * @return string
@@ -100,11 +107,17 @@ class WC_Product_Variable extends WC_Product {
 	public function get_variation_prices( $for_display = false ) {
 		$prices = $this->data_store->read_price_data( $this, $for_display );
 
-		foreach ( $prices as $price_key => $variation_prices ) {
-			$prices[ $price_key ] = $this->sort_variation_prices( $variation_prices );
+		// Performance note: use weak comparison to identify changes, while skipping array sorting on repetitive calls.
+		$cache_key                            = $for_display ? '1' : '0';
+		$this->variation_prices[ $cache_key ] = $this->variation_prices[ $cache_key ] ?? array();
+		if ( $this->variation_prices[ $cache_key ] != $prices ) {
+			foreach ( $prices as $price_key => $variation_prices ) {
+				$prices[ $price_key ] = $this->sort_variation_prices( $variation_prices );
+			}
+			$this->variation_prices[ $cache_key ] = $prices;
 		}
 
-		return $prices;
+		return $this->variation_prices[ $cache_key ];
 	}
 
 	/**

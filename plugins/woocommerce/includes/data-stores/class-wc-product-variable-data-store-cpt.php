@@ -323,23 +323,27 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 	 */
 	public function read_price_data( &$product, $for_display = false ) {
 		/**
-		 * Transient name for storing prices for this product (note: Max transient length is 45)
+		 * If you are here to investigate performance of this method: yes, it is heavy in RAM and CPU usage overall.
+		 * The root cause is that variation objects here is hard-locked by multiple contracts (extension points / filters).
 		 *
-		 * @since 2.5.0 a single transient is used per product for all prices, rather than many transients per product.
+		 * What optimizations are in place already:
+		 * - request level cache ($this->prices_array)
+		 * - cross-request cache transient (wc_var_prices_<product_id>; sensitive to product transients invalidation through multiple workflows)
+		 * - cache priming (bulk-fetching data from DB) for the product and it's variations data
+		 * - object instance caching (request-level optimization for wc_get_product; applies across Woo core and extensions)
 		 */
-		$transient_name      = 'wc_var_prices_' . $product->get_id();
-		$transient_version   = WC_Cache_Helper::get_transient_version( 'product' );
-		$price_hash          = $this->get_price_hash( $product, $for_display );
-		$opposite_price_hash = $this->taxes_influence_price( $product ) ? null : $this->get_price_hash( $product, ! $for_display );
-
-		/**
-		 * $this->prices_array is an array of values which may have been modified from what is stored in transients - this may not match $transient_cached_prices_array.
-		 * If the value has already been generated, we don't need to grab the values again so just return them. They are already filtered.
-		 */
+		$price_hash = $this->get_price_hash( $product, $for_display );
 		if ( empty( $this->prices_array[ $price_hash ] ) ) {
-			$transient_cached_prices_array = array_filter( (array) json_decode( strval( get_transient( $transient_name ) ), true ) );
+			/**
+			 * Transient name for storing prices for this product (note: Max transient length is 45)
+			 * @since 2.5.0 a single transient is used per product for all prices, rather than many transients per product.
+			 */
+			$transient_name      = 'wc_var_prices_' . $product->get_id();
+			$transient_version   = WC_Cache_Helper::get_transient_version( 'product' );
+			$opposite_price_hash = $this->taxes_influence_price( $product ) ? null : $this->get_price_hash( $product, ! $for_display );
 
 			// If the prices are not valid, reset the transient cache.
+			$transient_cached_prices_array = array_filter( (array) json_decode( (string) get_transient( $transient_name ), true ) );
 			if ( ! $this->validate_prices_data( $transient_cached_prices_array, $transient_version ) ) {
 				$transient_cached_prices_array = array();
 			}
@@ -621,7 +625,7 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 			$price_hash = array(
 				get_option( 'woocommerce_tax_display_shop', TaxDisplayMode::EXCLUSIVE ),
 				WC_Tax::get_rates(),
-				empty( WC()->customer ) ? false : WC()->customer->is_vat_exempt(),
+				! empty( WC()->customer ) && WC()->customer->is_vat_exempt(),
 			);
 		}
 
