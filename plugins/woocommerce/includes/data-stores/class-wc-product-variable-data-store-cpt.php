@@ -324,7 +324,9 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 	public function read_price_data( &$product, $for_display = false ) {
 		/**
 		 * If you are here to investigate performance of this method: yes, it is heavy in RAM and CPU usage overall.
-		 * The root cause is that variation objects here is hard-locked by multiple contracts (extension points / filters).
+		 *
+		 * The root cause is that variation objects here is hard-locked by multiple contracts (extension points / filters). Those
+		 * contracts have been heavily used by a group of popular extensions, rendering possible optimization routes irrelevant on scale.
 		 *
 		 * What optimizations are in place already:
 		 * - request level cache ($this->prices_array)
