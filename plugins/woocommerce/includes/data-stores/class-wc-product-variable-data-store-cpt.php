@@ -333,6 +333,9 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 		 * - cross-request cache (transient wc_var_prices_<product_id>; sensitive to product transients invalidation through multiple workflows)
 		 * - cache priming (bulk-fetching data from DB) for the product and it's variations
 		 * - object instance caching (request-level optimization for wc_get_product; applies across Woo core and extensions)
+		 *
+		 * Known gap (tax-inclusive stores): taxes_influence_price() gives $for_display=true and =false separate cache keys;
+		 * both cold on the same request (e.g. get_price_html() + is_on_sale()) each run a full variation loop
 		 */
 		$price_hash = $this->get_price_hash( $product, $for_display );
 		if ( empty( $this->prices_array[ $price_hash ] ) ) {
