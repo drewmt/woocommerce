@@ -331,7 +331,7 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 		 * What optimizations are in place already:
 		 * - request level cache ($this->prices_array)
 		 * - cross-request cache (transient wc_var_prices_<product_id>; sensitive to product transients invalidation through multiple workflows)
-		 * - cache priming (bulk-fetching data from DB) for the product and it's variations data
+		 * - cache priming (bulk-fetching data from DB) for the product and it's variations
 		 * - object instance caching (request-level optimization for wc_get_product; applies across Woo core and extensions)
 		 */
 		$price_hash = $this->get_price_hash( $product, $for_display );
