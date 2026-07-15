@@ -517,14 +517,10 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 							 */
 							$prices_array = apply_filters( 'woocommerce_variation_prices_array', $prices_array, $variation, $for_display );
 							if ( $opposite_price_hash ) {
-								// In principle, we know that prices for display and not for display are the same ones,
-								// but code hooking on woocommerce_variation_prices_array could make this different
-								// so we need to check.
-								$prices_array_hash = md5( wp_json_encode( $prices_array ) );
+								// $for_display doesn't affect raw prices here, but a woocommerce_variation_prices_array hook might.
 								// phpcs:ignore WooCommerce.Commenting.CommentHooks
-								$opposite_prices_array      = apply_filters( 'woocommerce_variation_prices_array', $original_prices_array, $variation, ! $for_display );
-								$opposite_prices_array_hash = md5( wp_json_encode( $opposite_prices_array ) );
-								if ( $opposite_prices_array_hash !== $prices_array_hash ) {
+								$opposite_prices_array = apply_filters( 'woocommerce_variation_prices_array', $original_prices_array, $variation, ! $for_display );
+								if ( $opposite_prices_array !== $prices_array ) {
 									$opposite_price_hash = null;
 								}
 							}
