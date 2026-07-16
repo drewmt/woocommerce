@@ -220,6 +220,7 @@ class WC_Tests_Core_Functions extends WC_Unit_Test_Case {
 	 * Test get_woocommerce_currency_symbol().
 	 *
 	 * @since 2.2
+	 * @testdox Currency symbols are returned for supported currency codes
 	 */
 	public function test_get_woocommerce_currency_symbol() {
 
@@ -228,6 +229,7 @@ class WC_Tests_Core_Functions extends WC_Unit_Test_Case {
 
 		// Given specific currency.
 		$this->assertEquals( '&pound;', get_woocommerce_currency_symbol( 'GBP' ) );
+		$this->assertSame( 'ZMW', get_woocommerce_currency_symbol( 'ZMW' ), 'The Zambian kwacha symbol should use its ISO currency code.' );
 
 		// Each case.
 		foreach ( array_keys( get_woocommerce_currencies() ) as $currency_code ) {
