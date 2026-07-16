@@ -264,11 +264,8 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 						...array_map( static fn( $attribute ) => wc_variation_attribute_name( $attribute['name'] ), $attributes )
 					)
 				);
-				if ( ! empty( $prefetch ) ) {
-					foreach ( $prefetch as $row ) {
-						$attributes_values[ $row->meta_key ]   = $attributes_values[ $row->meta_key ] ?? array();
-						$attributes_values[ $row->meta_key ][] = $row->meta_value;
-					}
+				foreach ( $prefetch as $row ) {
+					$attributes_values[ $row->meta_key ][] = $row->meta_value;
 				}
 			}
 
