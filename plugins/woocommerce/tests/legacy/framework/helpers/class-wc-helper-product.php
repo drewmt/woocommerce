@@ -384,13 +384,12 @@ class WC_Helper_Product {
 
 		foreach ( $terms as $term ) {
 			$result = term_exists( $term, $attribute->slug );
-
-			if ( ! $result ) {
-				$result               = wp_insert_term( $term, $attribute->slug );
-				$return['term_ids'][] = $result['term_id'];
-			} else {
-				$return['term_ids'][] = $result['term_id'];
+			if ( $result ) {
+				wp_delete_term( $result['term_id'], $attribute->slug );
 			}
+
+			$result               = wp_insert_term( $term, $attribute->slug );
+			$return['term_ids'][] = $result['term_id'];
 		}
 
 		return $return;
