@@ -108,12 +108,12 @@ class WC_Product_Variable extends WC_Product {
 		$prices = $this->data_store->read_price_data( $this, $for_display );
 
 		// Performance note: weak comparison identifies (current data shape only) changes while skipping repetitive sorting.
-		$cache_key = $for_display ? '1' : '0';
-		if ( ( $this->variation_prices[ $cache_key ] ?? array() ) != $prices ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual
+		$cache_key     = $for_display ? '1' : '0';
+		$cached_prices = $this->variation_prices[ $cache_key ] ?? array();
+		if ( $cached_prices != $prices ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual
 			foreach ( $prices as $price_key => $variation_prices ) {
 				$prices[ $price_key ] = $this->sort_variation_prices( $variation_prices );
 			}
-			/** @var array<string,array<int,float>> $prices */ // phpcs:ignore Generic.Commenting.DocComment.MissingShort
 			$this->variation_prices[ $cache_key ] = $prices;
 		}
 
