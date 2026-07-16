@@ -526,8 +526,10 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 
 				// Add all pricing data to the transient array.
 				foreach ( $prices_array as $key => $values ) {
-					$transient_cached_prices_array[ $price_hash ][ $key ]                         = $values;
-					$transient_cached_prices_array[ $opposite_price_hash ?? $price_hash ][ $key ] = $values;
+					$transient_cached_prices_array[ $price_hash ][ $key ] = $values;
+					if ( $opposite_price_hash ) {
+						$transient_cached_prices_array[ $opposite_price_hash ][ $key ] = $values;
+					}
 				}
 
 				// Validate the prices data before storing it in the transient.
