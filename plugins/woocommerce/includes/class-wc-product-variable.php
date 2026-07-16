@@ -107,7 +107,7 @@ class WC_Product_Variable extends WC_Product {
 	public function get_variation_prices( $for_display = false ) {
 		$prices = $this->data_store->read_price_data( $this, $for_display );
 
-		// Performance note: use weak comparison to identify changes, while skipping array sorting on repetitive calls.
+		// Performance note: weak comparison identifies (current data shape only) changes while skipping repetitive sorting.
 		$cache_key                            = $for_display ? '1' : '0';
 		$this->variation_prices[ $cache_key ] = $this->variation_prices[ $cache_key ] ?? array();
 		if ( $this->variation_prices[ $cache_key ] != $prices ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual
