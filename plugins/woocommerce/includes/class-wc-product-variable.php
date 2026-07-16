@@ -114,6 +114,7 @@ class WC_Product_Variable extends WC_Product {
 			foreach ( $prices as $price_key => $variation_prices ) {
 				$prices[ $price_key ] = $this->sort_variation_prices( $variation_prices );
 			}
+			/** @var array<string,array<int,float>> $prices */
 			$this->variation_prices[ $cache_key ] = $prices;
 		}
 

@@ -338,6 +338,7 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 		if ( empty( $this->prices_array[ $price_hash ] ) ) {
 			/**
 			 * Transient name for storing prices for this product (note: Max transient length is 45)
+			 *
 			 * @since 2.5.0 a single transient is used per product for all prices, rather than many transients per product.
 			 */
 			$transient_name      = 'wc_var_prices_' . $product->get_id();
