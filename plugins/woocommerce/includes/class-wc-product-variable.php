@@ -113,9 +113,7 @@ class WC_Product_Variable extends WC_Product {
 		// Performance note: weak comparison identifies (current data shape only) changes while skipping repetitive sorting.
 		$cache_key = $for_display ? 'for_display:1' : 'for_display:0';
 		if ( $this->variation_prices[ $cache_key ] != $prices ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual
-			foreach ( $prices as $variation_prices ) {
-				$this->variation_prices[ $cache_key ] = $this->sort_variation_prices( $variation_prices );
-			}
+			$this->variation_prices[ $cache_key ] = array_map( fn( $variation_prices ) => $this->sort_variation_prices( $variation_prices ), $prices );
 		}
 
 		return $this->variation_prices[ $cache_key ];
