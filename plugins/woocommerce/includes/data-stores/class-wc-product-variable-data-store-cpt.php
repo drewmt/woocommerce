@@ -258,8 +258,9 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 				$children_placeholders   = implode( ', ', array_fill( 0, count( $child_ids ), '%d' ) );
 				$prefetch                = $wpdb->get_results(
 					$wpdb->prepare(
+						// Performance: DISTINCT + CAST(meta_value AS BINARY(200)) is feasible but forces a temp table — keep array_unique.
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-						"SELECT DISTINCT meta_key, CAST(meta_value AS BINARY) AS meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$children_placeholders} ) AND meta_key IN ( {$attributes_placeholders} )",
+						"SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$children_placeholders} ) AND meta_key IN ( {$attributes_placeholders} )",
 						...$child_ids,
 						...array_map( static fn( $attribute ) => wc_variation_attribute_name( $attribute['name'] ), $attributes )
 					)
@@ -297,7 +298,7 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 						}
 					}
 				}
-				$variation_attributes[ $attribute['name'] ] = array_unique( $values );
+				$variation_attributes[ $attribute['name'] ] = array_values( array_unique( $values ) );
 			}
 		}
 
@@ -937,24 +938,10 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 	 * @since 3.0.0
 	 */
 	public function sync_stock_status( &$product ) {
-		global $wpdb;
-
-		$statuses  = array();
-		$child_ids = $product->get_children();
-		if ( ! empty( $child_ids ) ) {
-			$placeholders = implode( ', ', array_fill( 0, count( $child_ids ), '%d' ) );
-			if ( get_option( 'woocommerce_product_lookup_table_is_generating' ) ) {
-				$query = "SELECT DISTINCT meta_value FROM {$wpdb->postmeta} WHERE meta_key = '_stock_status' AND post_id IN ( {$placeholders} )";
-			} else {
-				$query = "SELECT DISTINCT stock_status FROM {$wpdb->wc_product_meta_lookup} WHERE product_id IN ( {$placeholders} )";
-			}
-			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			$statuses = $wpdb->get_col( $wpdb->prepare( $query, $child_ids ) );
-		}
-
-		if ( in_array( ProductStockStatus::IN_STOCK, $statuses, true ) ) {
+		// Performance note: direct DB fetch would be faster, but child_is_in_stock/child_is_on_backorder are overridable — keep delegation.
+		if ( $product->child_is_in_stock() ) {
 			$product->set_stock_status( ProductStockStatus::IN_STOCK );
-		} elseif ( in_array( ProductStockStatus::ON_BACKORDER, $statuses, true ) ) {
+		} elseif ( $product->child_is_on_backorder() ) {
 			$product->set_stock_status( ProductStockStatus::ON_BACKORDER );
 		} else {
 			$product->set_stock_status( ProductStockStatus::OUT_OF_STOCK );
