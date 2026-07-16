@@ -259,16 +259,13 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 				$prefetch                = $wpdb->get_results(
 					$wpdb->prepare(
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-						"SELECT DISTINCT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$children_placeholders} ) AND meta_key IN ( {$attributes_placeholders} )",
+						"SELECT DISTINCT meta_key, CAST(meta_value AS BINARY) AS meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$children_placeholders} ) AND meta_key IN ( {$attributes_placeholders} )",
 						...$child_ids,
 						...array_map( static fn( $attribute ) => wc_variation_attribute_name( $attribute['name'] ), $attributes )
 					)
 				);
-				if ( ! empty( $prefetch ) ) {
-					foreach ( $prefetch as $row ) {
-						$attributes_values[ $row->meta_key ]   = $attributes_values[ $row->meta_key ] ?? array();
-						$attributes_values[ $row->meta_key ][] = $row->meta_value;
-					}
+				foreach ( $prefetch as $row ) {
+					$attributes_values[ $row->meta_key ][] = $row->meta_value;
 				}
 			}
 
