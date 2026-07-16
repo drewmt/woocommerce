@@ -562,7 +562,7 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 			 * @param bool       $for_display  Whether prices are being retrieved for display.
 			 */
 			$this->prices_array[ $price_hash ] = apply_filters( 'woocommerce_variation_prices', $transient_cached_prices_array[ $price_hash ], $product, $for_display );
-			if ( ! is_null( $opposite_price_hash ) && $opposite_price_hash !== $price_hash ) {
+			if ( $opposite_price_hash && $opposite_price_hash !== $price_hash ) {
 				// phpcs:ignore WooCommerce.Commenting.CommentHooks
 				$this->prices_array[ $opposite_price_hash ] = apply_filters( 'woocommerce_variation_prices', $transient_cached_prices_array[ $opposite_price_hash ], $product, ! $for_display );
 			}
