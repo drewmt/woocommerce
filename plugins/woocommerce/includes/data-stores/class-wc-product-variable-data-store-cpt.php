@@ -325,14 +325,18 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 		/**
 		 * If you are here to investigate performance of this method: yes, it is heavy in RAM and CPU usage overall.
 		 *
-		 * The root cause is that variation objects here is hard-locked by multiple contracts (extension points / filters). Those
-		 * contracts have been heavily used by a group of popular extensions, rendering possible optimization routes irrelevant on scale.
+		 * The root cause is that variation object usage is hard-locked by multiple contracts (extension points / filters).
+		 * Those contracts are heavily used by popular extensions, rendering most optimization routes irrelevant at scale.
 		 *
-		 * What optimizations are in place already:
-		 * - request level cache ($this->prices_array)
-		 * - cross-request cache (transient wc_var_prices_<product_id>; sensitive to product transients invalidation through multiple workflows)
-		 * - cache priming (bulk-fetching data from DB) for the product and it's variations
+		 * Optimizations already in place:
+		 * - request-level cache ($this->prices_array)
+		 * - cross-request cache (transient wc_var_prices_<product_id>; sensitive to product transient invalidation through multiple workflows)
+		 * - cache priming (bulk-fetching data from DB) for the product and its variations
 		 * - object instance caching (request-level optimization for wc_get_product; applies across Woo core and extensions)
+		 *
+		 * That leaves two optimization routes:
+		 * - rewrite this method, if breaking the contracts is an option (it's not as per WooCommerce v11.1)
+		 * - verify transient wc_var_prices_<product_id> invalidation frequency and triggers if it gets critical in later releases
 		 */
 		$price_hash = $this->get_price_hash( $product, $for_display );
 		if ( empty( $this->prices_array[ $price_hash ] ) ) {
