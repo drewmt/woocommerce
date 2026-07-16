@@ -355,8 +355,7 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 
 			// If the prices are not stored for this hash, generate them and add to the transient.
 			// Check also the opposite price hash as it may have changed (see get_price_hash).
-			if ( empty( $transient_cached_prices_array[ $price_hash ] ) ||
-				( $opposite_price_hash && $opposite_price_hash !== $price_hash && empty( $transient_cached_prices_array[ $opposite_price_hash ] ) ) ) {
+			if ( empty( $transient_cached_prices_array[ $price_hash ] ) || ( $opposite_price_hash && empty( $transient_cached_prices_array[ $opposite_price_hash ] ) ) ) {
 				$prices_array = array(
 					'price'         => array(),
 					'regular_price' => array(),
@@ -531,7 +530,7 @@ class WC_Product_Variable_Data_Store_CPT extends WC_Product_Data_Store_CPT imple
 				// Add all pricing data to the transient array.
 				foreach ( $prices_array as $key => $values ) {
 					$transient_cached_prices_array[ $price_hash ][ $key ] = $values;
-					if ( $opposite_price_hash && $opposite_price_hash !== $price_hash ) {
+					if ( $opposite_price_hash ) {
 						$transient_cached_prices_array[ $opposite_price_hash ][ $key ] = $values;
 					}
 				}
