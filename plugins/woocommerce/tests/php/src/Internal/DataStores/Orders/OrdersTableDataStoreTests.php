@@ -2695,6 +2695,48 @@ class OrdersTableDataStoreTests extends \HposTestCase {
 	}
 
 	/**
+	 * @testdox When the orders table is authoritative and sync is disabled, deleting an order deletes its order notes.
+	 *
+	 * @testWith [true]
+	 *           [false]
+	 *
+	 * @param bool $create_with_sync_enabled True to create the order with sync enabled before deleting with sync disabled.
+	 */
+	public function test_order_deletion_with_sync_disabled_deletes_order_notes( bool $create_with_sync_enabled ) {
+		global $wpdb;
+
+		$this->allow_current_user_to_delete_posts();
+		$this->toggle_cot_feature_and_usage( true );
+		$this->toggle_cot_authoritative( true );
+
+		if ( $create_with_sync_enabled ) {
+			$this->enable_cot_sync();
+		} else {
+			$this->disable_cot_sync();
+		}
+
+		$order    = new WC_Order();
+		$order_id = $order->save();
+		$note_id  = $order->add_order_note( 'Delete this note with the order.' );
+
+		$this->assertInstanceOf( \WP_Comment::class, get_comment( $note_id ) );
+
+		$this->disable_cot_sync();
+		$order->delete( true );
+
+		$this->assertNull( get_comment( $note_id ) );
+		$this->assertSame(
+			'0',
+			$wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_post_ID = %d",
+					$order_id
+				)
+			)
+		);
+	}
+
+	/**
 	 * @testdox When deleting an order whose associated post type is hierarchical, child orders aren't deleted and get the parent id of their parent order.
 	 */
 	public function test_order_deletion_when_post_type_is_hierarchical_results_in_child_order_upshifting() {

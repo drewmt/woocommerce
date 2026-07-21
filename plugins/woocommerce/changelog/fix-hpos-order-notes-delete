@@ -1,0 +1,4 @@
+Significance: patch
+Type: fix
+
+Delete order notes when permanently deleting HPOS orders while data sync is disabled.

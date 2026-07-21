@@ -2699,6 +2699,8 @@ FROM $order_meta_table
 	protected function handle_order_deletion_with_sync_disabled( $order_id ): void {
 		global $wpdb;
 
+		$this->delete_order_comments( $order_id );
+
 		$post_type = $wpdb->get_var(
 			$wpdb->prepare( "SELECT post_type FROM {$wpdb->posts} WHERE ID=%d", $order_id )
 		);
@@ -2728,6 +2730,27 @@ FROM $order_meta_table
 			// thus all the child orders either still exist but have a different parent id,
 			// or have been deleted and got their own deletion record already.
 			// So there's no need to do anything about them.
+		}
+	}
+
+	/**
+	 * Deletes comments associated with an order.
+	 *
+	 * @param int $order_id The order ID.
+	 * @return void
+	 */
+	protected function delete_order_comments( int $order_id ): void {
+		global $wpdb;
+
+		$comment_ids = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT comment_ID FROM {$wpdb->comments} WHERE comment_post_ID = %d",
+				$order_id
+			)
+		);
+
+		foreach ( $comment_ids as $comment_id ) {
+			wp_delete_comment( $comment_id, true );
 		}
 	}
 
