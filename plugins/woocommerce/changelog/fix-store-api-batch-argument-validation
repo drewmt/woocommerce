@@ -1,0 +1,4 @@
+Significance: patch
+Type: fix
+
+Prevent malformed product IDs from allowing partial cart updates in batches that require all requests to validate.
