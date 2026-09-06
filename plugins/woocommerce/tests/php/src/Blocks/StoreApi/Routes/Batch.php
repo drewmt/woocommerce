@@ -131,6 +131,107 @@ class Batch extends ControllerTestCase {
 
 
 	/**
+	 * @testdox Should reject malformed product IDs before executing a strict batch.
+	 * @dataProvider invalid_product_id_provider
+	 * @param mixed $product_id Invalid product ID.
+	 */
+	public function test_batch_validates_product_id_before_cart_changes( $product_id ): void {
+		$response = $this->dispatch_add_item_batch( $product_id, 'require-all-validate' );
+		$data     = $response->get_data();
+
+		$this->assertSame( 207, $response->get_status() );
+		$this->assertSame( 'validation', $data['failed'] ?? null, 'Invalid product IDs should fail batch preflight.' );
+		$this->assertNull( $data['responses'][0], 'The valid sibling request should not execute.' );
+		$this->assertSame( 400, $data['responses'][1]['status'] );
+		$this->assertSame( 'rest_invalid_param', $data['responses'][1]['body']['code'] );
+		$this->assertArrayHasKey( 'id', $data['responses'][1]['body']['data']['params'] );
+		$this->assertTrue( WC()->cart->is_empty(), 'A failed preflight should leave the cart unchanged.' );
+	}
+
+	/**
+	 * Product IDs that must not be coerced by absint before validation.
+	 *
+	 * @return array
+	 */
+	public function invalid_product_id_provider(): array {
+		return array(
+			'nonnumeric string' => array( 'banana' ),
+			'fractional number' => array( 1.5 ),
+			'boolean'           => array( true ),
+			'array'             => array( array( 1 ) ),
+		);
+	}
+
+	/**
+	 * @testdox Should execute valid sibling requests when normal batch validation is used.
+	 */
+	public function test_normal_batch_executes_valid_requests_with_invalid_product_id(): void {
+		$data = $this->dispatch_add_item_batch( 'banana', 'normal' )->get_data();
+
+		$this->assertArrayNotHasKey( 'failed', $data );
+		$this->assertSame( 201, $data['responses'][0]['status'] );
+		$this->assertSame( 400, $data['responses'][1]['status'] );
+		$this->assertSame( 'rest_invalid_param', $data['responses'][1]['body']['code'] );
+		$this->assertSame( 1, WC()->cart->get_cart_contents_count(), 'Normal batches should still execute valid requests.' );
+	}
+
+	/**
+	 * @testdox Should accept integer-string product IDs and preserve quantity defaults in strict batches.
+	 */
+	public function test_strict_batch_accepts_numeric_string_product_id(): void {
+		$data = $this->dispatch_add_item_batch( (string) $this->products[1]->get_id(), 'require-all-validate' )->get_data();
+
+		$this->assertArrayNotHasKey( 'failed', $data );
+		$this->assertSame( 201, $data['responses'][0]['status'] );
+		$this->assertSame( 201, $data['responses'][1]['status'] );
+		$this->assertSame( 2, WC()->cart->get_cart_contents_count(), 'Both products should be added with the default quantity of one.' );
+	}
+
+	/**
+	 * @testdox Should keep runtime product errors distinct from strict batch validation failures.
+	 */
+	public function test_strict_batch_does_not_roll_back_runtime_product_errors(): void {
+		$data = $this->dispatch_add_item_batch( 0, 'require-all-validate' )->get_data();
+
+		$this->assertArrayNotHasKey( 'failed', $data, 'A schema-valid ID should reach the product lookup.' );
+		$this->assertSame( 201, $data['responses'][0]['status'] );
+		$this->assertSame( 'woocommerce_rest_cart_invalid_product', $data['responses'][1]['body']['code'] );
+		$this->assertSame( 1, WC()->cart->get_cart_contents_count(), 'Strict validation does not provide runtime rollback.' );
+	}
+
+	/**
+	 * Dispatch a valid cart mutation followed by an add-item request with the given ID.
+	 *
+	 * @param mixed  $product_id Product ID for the second request.
+	 * @param string $validation Batch validation mode.
+	 * @return \WP_REST_Response
+	 */
+	private function dispatch_add_item_batch( $product_id, string $validation ): \WP_REST_Response {
+		$request = new \WP_REST_Request( 'POST', '/wc/store/v1/batch' );
+		$nonce   = wp_create_nonce( 'wc_store_api' );
+		$request->set_header( 'Nonce', $nonce );
+		$requests = array();
+
+		foreach ( array( $this->products[0]->get_id(), $product_id ) as $id ) {
+			$requests[] = array(
+				'method'  => 'POST',
+				'path'    => '/wc/store/v1/cart/add-item',
+				'body'    => array( 'id' => $id ),
+				'headers' => array( 'Nonce' => $nonce ),
+			);
+		}
+
+		$request->set_body_params(
+			array(
+				'validation' => $validation,
+				'requests'   => $requests,
+			)
+		);
+
+		return rest_get_server()->dispatch( $request );
+	}
+
+	/**
 	 * Do a batch request with a get request.
 	 */
 	public function test_batch_get_requests() {

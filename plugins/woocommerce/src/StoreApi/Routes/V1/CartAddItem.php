@@ -48,6 +48,7 @@ class CartAddItem extends AbstractCartRoute {
 						'description'       => __( 'The cart item product or variation ID.', 'woocommerce' ),
 						'type'              => 'integer',
 						'context'           => [ 'view', 'edit' ],
+						'validate_callback' => 'rest_validate_request_arg',
 						'sanitize_callback' => 'absint',
 					],
 					'quantity'  => [
