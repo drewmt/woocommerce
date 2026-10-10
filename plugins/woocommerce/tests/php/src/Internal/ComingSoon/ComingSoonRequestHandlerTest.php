@@ -128,4 +128,53 @@ class ComingSoonRequestHandlerTest extends \WC_Unit_Test_Case {
 
 		$this->sut->experimental_filter_theme_json_theme( $theme_json );
 	}
+
+	/**
+	 * @testdox Coming Soon preserves the theme's font presets, including fonts inherited by a fontless child.
+	 * @testWith ["font-child", "Lora, serif", "Lora, serif"]
+	 *           ["fontless-child", "Parent Sans, sans-serif", "Parent Serif, serif"]
+	 *           ["font-parent", "Parent Sans, sans-serif", "Parent Serif, serif"]
+	 *
+	 * @param string $stylesheet   Theme to activate.
+	 * @param string $body_font    Expected body font.
+	 * @param string $heading_font Expected heading font.
+	 */
+	public function test_theme_fonts_are_preserved( string $stylesheet, string $body_font, string $heading_font ): void {
+		$original_theme       = get_stylesheet();
+		$original_directories = $GLOBALS['wp_theme_directories'];
+		$callback             = array( $this->sut, 'experimental_filter_theme_json_theme' );
+		remove_filter( 'wp_theme_json_data_theme', $callback );
+		try {
+			register_theme_directory( __DIR__ . '/fixtures/themes' );
+			wp_clean_themes_cache();
+			switch_theme( $stylesheet );
+			\WP_Theme_JSON_Resolver::clean_cached_data();
+			$before = \WP_Theme_JSON_Resolver::get_theme_data()->get_raw_data();
+			$fonts  = array_column( $before['settings']['typography']['fontFamilies']['theme'], 'fontFamily', 'slug' );
+			$this->assertSame( $body_font, $fonts['body'], 'The fixture must use the expected font without Coming Soon.' );
+			$this->assertSame( $heading_font, $fonts['heading'], 'The fixture must use the expected heading font without Coming Soon.' );
+
+			add_filter( 'wp_theme_json_data_theme', $callback );
+			\WP_Theme_JSON_Resolver::clean_cached_data();
+			$after       = \WP_Theme_JSON_Resolver::get_theme_data()->get_raw_data();
+			$after_fonts = $after['settings']['typography']['fontFamilies']['theme'];
+			$font_map    = array_column( $after_fonts, 'fontFamily', 'slug' );
+
+			$this->assertSame( $body_font, $font_map['body'], 'Coming Soon must not replace the theme body font.' );
+			$this->assertSame( $heading_font, $font_map['heading'], 'Coming Soon must not replace the theme heading font.' );
+			$this->assertCount( 4, $after_fonts, 'Only the theme presets and the two bundled fonts should be present.' );
+			$this->assertSame( '"Inter", sans-serif', $font_map['inter'], 'The Coming Soon page still needs Inter.' );
+			$this->assertSame( 'Cardo', $font_map['cardo'], 'The Coming Soon page still needs Cardo.' );
+
+			$css = \WP_Theme_JSON_Resolver::get_theme_data()->get_stylesheet( array( 'variables' ) );
+			$this->assertStringContainsString( '--wp--preset--font-family--body: ' . $body_font . ';', $css );
+			$this->assertStringContainsString( '--wp--preset--font-family--heading: ' . $heading_font . ';', $css );
+		} finally {
+			remove_filter( 'wp_theme_json_data_theme', $callback );
+			switch_theme( $original_theme );
+			$GLOBALS['wp_theme_directories'] = $original_directories; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore the registered theme directories after the fixture.
+			wp_clean_themes_cache();
+			\WP_Theme_JSON_Resolver::clean_cached_data();
+		}
+	}
 }

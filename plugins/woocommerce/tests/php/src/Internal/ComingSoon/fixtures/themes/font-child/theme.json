@@ -1,0 +1,11 @@
+{
+	"version": 2,
+	"settings": {
+		"typography": {
+			"fontFamilies": [
+				{ "name": "Lora", "slug": "body", "fontFamily": "Lora, serif" },
+				{ "name": "Lora Heading", "slug": "heading", "fontFamily": "Lora, serif" }
+			]
+		}
+	}
+}

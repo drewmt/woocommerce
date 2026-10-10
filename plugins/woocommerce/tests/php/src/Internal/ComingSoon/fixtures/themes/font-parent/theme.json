@@ -1,0 +1,11 @@
+{
+	"version": 2,
+	"settings": {
+		"typography": {
+			"fontFamilies": [
+				{ "name": "Parent Sans", "slug": "body", "fontFamily": "Parent Sans, sans-serif" },
+				{ "name": "Parent Serif", "slug": "heading", "fontFamily": "Parent Serif, serif" }
+			]
+		}
+	}
+}

@@ -178,7 +178,7 @@ class ComingSoonRequestHandler {
 
 	/**
 	 * Filters the theme.json data to add Coming Soon fonts.
-	 * This runs after child theme merging to ensure parent theme fonts are included.
+	 * Preserves parent theme fonts when the child theme declares none.
 	 *
 	 * @param WP_Theme_JSON_Data $theme_json The theme json data object.
 	 * @return WP_Theme_JSON_Data The filtered theme json data.
@@ -187,32 +187,17 @@ class ComingSoonRequestHandler {
 		$theme_data = $theme_json->get_data();
 		$font_data  = $theme_data['settings']['typography']['fontFamilies']['theme'] ?? array();
 
-		// Check if the current theme is a child theme. And if so, merge the parent theme fonts with the existing fonts.
-		if ( wp_get_theme()->parent() ) {
+		// Inherit parent fonts only when the child theme does not define its own font presets.
+		if ( empty( $font_data ) && wp_get_theme()->parent() ) {
 			$parent_theme           = wp_get_theme()->parent();
 			$parent_theme_json_file = $parent_theme->get_file_path( 'theme.json' );
 
 			if ( is_readable( $parent_theme_json_file ) ) {
 				$parent_theme_json_data = json_decode( file_get_contents( $parent_theme_json_file ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 
-				if ( isset( $parent_theme_json_data['settings']['typography']['fontFamilies'] ) ) {
-					$parent_fonts = $parent_theme_json_data['settings']['typography']['fontFamilies'];
-
-					// Merge parent theme fonts with existing fonts.
-					foreach ( $parent_fonts as $parent_font ) {
-						$found = false;
-						foreach ( $font_data as $existing_font ) {
-							if ( isset( $parent_font['name'] ) && isset( $existing_font['name'] ) &&
-							$parent_font['name'] === $existing_font['name'] ) {
-								$found = true;
-								break;
-							}
-						}
-
-						if ( ! $found ) {
-							$font_data[] = $parent_font;
-						}
-					}
+				if ( isset( $parent_theme_json_data['settings']['typography']['fontFamilies'] ) &&
+					is_array( $parent_theme_json_data['settings']['typography']['fontFamilies'] ) ) {
+					$font_data = $parent_theme_json_data['settings']['typography']['fontFamilies'];
 				}
 			}
 		}
