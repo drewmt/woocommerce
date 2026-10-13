@@ -1,0 +1,4 @@
+Significance: patch
+Type: fix
+
+Estimate guest tax at the full store address when the default location is the store, without prefilling addresses.
