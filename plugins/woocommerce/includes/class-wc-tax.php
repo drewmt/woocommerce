@@ -475,6 +475,21 @@ class WC_Tax {
 
 		if ( ! empty( $customer ) ) {
 			$location = $customer->get_taxable_address();
+			if (
+				DefaultCustomerAddress::BASE === get_option( 'woocommerce_default_customer_address' ) &&
+				is_array( $location ) &&
+				did_action( 'woocommerce_init' ) &&
+				'' === ( $location[2] ?? null ) &&
+				'' === ( $location[3] ?? null ) &&
+				is_string( $location[0] ?? null ) &&
+				is_string( $location[1] ?? null ) &&
+				0 === strcasecmp( $location[0], WC()->countries->get_base_country() ) &&
+				0 === strcasecmp( $location[1], WC()->countries->get_base_state() )
+			) {
+				// Use the store address for the estimate without changing the customer's address.
+				$location[2] = WC()->countries->get_base_postcode();
+				$location[3] = WC()->countries->get_base_city();
+			}
 		} elseif ( wc_prices_include_tax() || DefaultCustomerAddress::BASE === get_option( 'woocommerce_default_customer_address' ) || TaxBasedOn::BASE === get_option( 'woocommerce_tax_based_on' ) ) {
 			$location = array(
 				WC()->countries->get_base_country(),
