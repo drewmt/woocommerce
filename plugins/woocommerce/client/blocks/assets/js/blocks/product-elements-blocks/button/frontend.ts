@@ -1,7 +1,12 @@
 /**
  * External dependencies
  */
-import { store, getContext, useLayoutEffect } from '@wordpress/interactivity';
+import {
+	store,
+	getContext,
+	getConfig,
+	useLayoutEffect,
+} from '@wordpress/interactivity';
 import '@woocommerce/stores/woocommerce/products';
 import type { Store as WooCommerce } from '@woocommerce/stores/woocommerce/cart';
 import type { ProductsStore } from '@woocommerce/stores/woocommerce/products';
@@ -21,6 +26,7 @@ const universalLock =
 
 interface Context {
 	addToCartText: string;
+	addToCartDescription: string | null;
 	groupedProductIds?: number[];
 	displayViewCart: boolean;
 	quantityToAdd: number;
@@ -137,6 +143,22 @@ const productButtonStore = {
 			}
 
 			return addToCartText;
+		},
+		get addToCartDescription(): string | null {
+			const { addToCartText, addToCartDescription } =
+				getContext< Context >();
+			if (
+				! addToCartDescription ||
+				state.addToCartText === addToCartText
+			) {
+				return addToCartDescription;
+			}
+			const { addToCartDescriptionTemplate } = getConfig(
+				'woocommerce/product-button'
+			);
+			return addToCartDescriptionTemplate
+				.replace( '%1$s', state.addToCartText )
+				.replace( '%2$s', addToCartDescription );
 		},
 		get displayViewCart(): boolean {
 			const { displayViewCart } = getContext< Context >();

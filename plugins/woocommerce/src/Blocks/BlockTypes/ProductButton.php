@@ -186,7 +186,7 @@ class ProductButton extends AbstractBlock {
 		wp_interactivity_state(
 			'woocommerce/product-button',
 			array(
-				'addToCartText' => function () {
+				'addToCartText'        => function () {
 					$context = wp_interactivity_get_context();
 					$quantity = $context['tempQuantity'];
 					$add_to_cart_text = $context['addToCartText'];
@@ -197,6 +197,29 @@ class ProductButton extends AbstractBlock {
 						$quantity
 					) : $add_to_cart_text;
 				},
+				'addToCartDescription' => function () {
+					$context     = wp_interactivity_get_context();
+					$description = $context['addToCartDescription'];
+					$state       = wp_interactivity_state( 'woocommerce/product-button' );
+					$text        = $state['addToCartText']();
+
+					if ( ! $description || $text === $context['addToCartText'] ) {
+						return $description;
+					}
+					return sprintf(
+						/* translators: 1: visible button text, 2: original button description. */
+						__( '%1$s. %2$s', 'woocommerce' ),
+						$text,
+						$description
+					);
+				},
+			)
+		);
+		wp_interactivity_config(
+			'woocommerce/product-button',
+			array(
+				/* translators: 1: visible button text, 2: original button description. */
+				'addToCartDescriptionTemplate' => __( '%1$s. %2$s', 'woocommerce' ),
 			)
 		);
 
@@ -215,9 +238,10 @@ class ProductButton extends AbstractBlock {
 				'attributes' => array_merge(
 					$attributes,
 					array(
-						'data-product_id'  => $product->get_id(),
-						'data-product_sku' => $product->get_sku(),
-						'aria-label'       => ! $is_descendant_of_add_to_cart_form || 'simple' === $product->get_type() ? $product->add_to_cart_description() : null,
+						'data-product_id'          => $product->get_id(),
+						'data-product_sku'         => $product->get_sku(),
+						'aria-label'               => ! $is_descendant_of_add_to_cart_form || 'simple' === $product->get_type() ? $product->add_to_cart_description() : null,
+						'data-wp-bind--aria-label' => 'state.addToCartDescription',
 					),
 				),
 			),
@@ -227,6 +251,7 @@ class ProductButton extends AbstractBlock {
 		if ( isset( $args['attributes']['aria-label'] ) ) {
 			$args['attributes']['aria-label'] = wp_strip_all_tags( $args['attributes']['aria-label'] );
 		}
+		$context['addToCartDescription'] = isset( $args['attributes']['aria-label'] ) ? html_entity_decode( $args['attributes']['aria-label'], ENT_QUOTES, get_bloginfo( 'charset' ) ) : null;
 
 		$div_directives = '
 			data-wp-interactive="woocommerce/product-button"
