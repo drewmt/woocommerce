@@ -577,6 +577,11 @@ class WC_Tax {
 	 *    - If no shipping rates exist for the tax class, returns empty array (no fallback to standard rates)
 	 *    - This ensures tax class inheritance works correctly - if a tax class doesn't apply to shipping, no shipping tax is charged
 	 *
+	 * When inheriting from cart items, an unavailable cart is treated as an empty
+	 * cart, using the standard tax class.
+	 * Outside a customer session, pass a customer or use the tax-location filters to
+	 * supply a destination. No rates are returned when no tax location is available.
+	 *
 	 * @param string|null      $tax_class Optional. Specific tax class slug to get rates for. If null, determines from cart contents.
 	 * @param WC_Customer|null $customer Optional. Customer object to get location from. Uses current customer if null.
 	 * @return array Array of tax rate arrays, each containing 'rate', 'label', 'shipping', and 'compound' keys. Empty array if no shipping rates found for the tax class.
@@ -646,7 +651,8 @@ class WC_Tax {
 	 *
 	 * Determines the appropriate tax class for shipping based on cart contents.
 	 * Standard tax class takes priority, followed by the first non-standard class
-	 * found in the configured tax class hierarchy.
+	 * found in the configured tax class hierarchy. An empty or unavailable cart uses
+	 * the standard tax class.
 	 *
 	 * @return string|null The shipping tax class slug, or null if no taxable items are found.
 	 */
@@ -655,7 +661,7 @@ class WC_Tax {
 		$cart               = WC()->cart;
 
 		// Check if cart has items before proceeding.
-		if ( ! $cart->get_cart() ) {
+		if ( ! $cart || ! $cart->get_cart() ) {
 			return $standard_tax_class;
 		}
 

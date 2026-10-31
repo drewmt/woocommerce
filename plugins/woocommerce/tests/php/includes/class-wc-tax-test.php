@@ -386,6 +386,55 @@ class WC_Tax_Test extends WC_Unit_Test_Case {
 	}
 
 	/**
+	 * @testdox Shipping tax inheritance uses standard rates for an empty or unavailable cart.
+	 * @testWith [false]
+	 *           [true]
+	 * @param bool $missing_cart Whether the cart is unavailable.
+	 */
+	public function test_shipping_tax_rates_without_cart_items( bool $missing_cart ): void {
+		update_option( 'woocommerce_shipping_tax_class', 'inherit' );
+		update_option( 'woocommerce_tax_based_on', 'shipping' );
+		$rate_id = $this->create_tax_rate_for_class( '', 20.0 );
+		WC_Tax::_update_tax_rate( $rate_id, array( 'tax_rate_country' => 'GB' ) );
+		$cart     = WC()->cart;
+		$customer = new WC_Customer();
+		$customer->set_shipping_country( 'GB' );
+
+		try {
+			if ( $missing_cart ) {
+				WC()->cart = null;
+			}
+			$rates = WC_Tax::get_shipping_tax_rates( null, $customer );
+			$this->assertSame( array( $rate_id ), array_keys( $rates ) );
+			$this->assertSame( 20.0, (float) $rates[ $rate_id ]['rate'] );
+		} finally {
+			WC()->cart = $cart;
+		}
+	}
+
+	/**
+	 * @testdox A missing cart and customer do not create a tax location.
+	 */
+	public function test_shipping_tax_rates_without_cart_or_customer_location(): void {
+		update_option( 'woocommerce_shipping_tax_class', 'inherit' );
+		update_option( 'woocommerce_tax_based_on', 'shipping' );
+		update_option( 'woocommerce_default_customer_address', '' );
+		update_option( 'woocommerce_prices_include_tax', 'no' );
+		$this->create_tax_rate_for_class( '', 20.0 );
+		$cart     = WC()->cart;
+		$customer = WC()->customer;
+
+		try {
+			WC()->cart     = null;
+			WC()->customer = null;
+			$this->assertSame( array(), WC_Tax::get_shipping_tax_rates() );
+		} finally {
+			WC()->cart     = $cart;
+			WC()->customer = $customer;
+		}
+	}
+
+	/**
 	 * Test get_shipping_tax_rates returns empty array for empty cart.
 	 */
 	public function test_get_shipping_tax_rates_empty_cart() {

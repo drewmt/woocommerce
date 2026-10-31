@@ -379,6 +379,8 @@ abstract class WC_Shipping_Method extends WC_Settings_API {
 	/**
 	 * Calc taxes per item being shipping in costs array.
 	 *
+	 * Without a cart, item costs are skipped but order-level costs are still taxed.
+	 *
 	 * @since 2.6.0
 	 * @param  array $costs Costs.
 	 * @return array of taxes
@@ -389,7 +391,7 @@ abstract class WC_Shipping_Method extends WC_Settings_API {
 		// If we have an array of costs we can look up each items tax class and add tax accordingly.
 		if ( is_array( $costs ) ) {
 
-			$cart = WC()->cart->get_cart();
+			$cart = WC()->cart ? WC()->cart->get_cart() : array();
 
 			foreach ( $costs as $cost_key => $amount ) {
 				if ( ! isset( $cart[ $cost_key ] ) ) {
